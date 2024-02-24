@@ -87,3 +87,11 @@ config SPIKE
     select HTIF
     select RISCV_ACLINT
     select SIFIVE_PLIC
+
+config SCALAR_TOY
+    bool
+    select RISCV_NUMA
+    select HTIF
+    select RISCV_ACLINT
+    select SIFIVE_PLIC
+    select SERIAL
