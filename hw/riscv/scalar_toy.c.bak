@@ -37,10 +37,8 @@
 #include "sysemu/device_tree.h"
 #include "sysemu/sysemu.h"
 #include "hw/char/serial.h"
-#include "qemu/log.h"
 
 #include <libfdt.h>
-#include <stdio.h>
 
 #define SCALAR_TOY_CPUS_MAX 8
 #define SCALAR_TOY_SOCKETS_MAX 8
@@ -57,7 +55,6 @@ struct ScalarToyState {
     /*< public >*/
     RISCVHartArrayState soc[SCALAR_TOY_SOCKETS_MAX];
     qemu_irq temp_irq;
-    MemoryRegion to_host_mr;
 };
 
 
@@ -65,51 +62,15 @@ enum SCALAR_DEVICE {
     SCALAR_TOY_MROM = 0,
     SCALAR_TOY_CLINT,
     SCALAR_TOY_DRAM,
-    SCALAR_VIRT_UART0,
-    SCALAR_TOY_TO_HOST,
+    SCALAR_VIRT_UART0
 };
 
 static const MemMapEntry scalar_toy_memmap[] = {
     [SCALAR_TOY_MROM] =     {     0x1000,     0xf000 },
     [SCALAR_TOY_CLINT] =    {  0x2000000,    0x10000 },
     [SCALAR_TOY_DRAM] =     { 0x80000000,        0x0 },
-    [SCALAR_VIRT_UART0] =   { 0xC0001000,    0x1000},
-    [SCALAR_TOY_TO_HOST] =  { 0xC0000000,    0x1000}
+    [SCALAR_VIRT_UART0] =    { 0xC0001000,    0x1000}
 };
-
-static void scalar_toy_to_host_write(void *opaque, hwaddr offset,
-                                    uint64_t value, unsigned size)
-{
-
-
-    //qemu_log("%s addr:%#lx value:%#lx.\n", __func__, offset, value);
-    printf("[HOST]%s addr:%#lx value:%#lx.\n", __func__, offset, value);
-    if (offset == 0)
-    {
-
-        if (value == 0) {
-
-        }
-        else if (value == 1) {
-            printf("[HOST]tocy_scalar success exit!\n");
-            exit(0);
-        } else {
-            printf("[HOST]toy_scalar failed with exit code %ld!\n", (value>>1));
-            exit(1);
-        }
-    }
-}
-
-static const MemoryRegionOps scalar_toy_to_host_ops = {
-    .read = NULL,
-    .write = scalar_toy_to_host_write,
-    .impl.max_access_size = 4,
-    .impl.min_access_size = 4,
-    .valid.max_access_size = 4,
-    .valid.min_access_size = 4,
-    .endianness = DEVICE_LITTLE_ENDIAN,
-};
-
 
 static void create_fdt(ScalarToyState *s, const MemMapEntry *memmap,
                        bool is_32_bit)
@@ -319,11 +280,6 @@ static void scalar_toy_board_init(MachineState *machine)
     /* register system main memory (actual RAM) */
     memory_region_add_subregion(system_memory, memmap[SCALAR_TOY_DRAM].base,
         machine->ram);
-
-    /* to host */
-    memory_region_init_io(&s->to_host_mr, OBJECT(s), &scalar_toy_to_host_ops, s, TYPE_SCALAR_TOY_MACHINE, memmap[SCALAR_TOY_TO_HOST].size);
-    memory_region_add_subregion(system_memory, memmap[SCALAR_TOY_TO_HOST].base,
-                         &s->to_host_mr);
 
     /* boot rom */
     memory_region_init_rom(mask_rom, NULL, "riscv.scalar_toy.mrom",
